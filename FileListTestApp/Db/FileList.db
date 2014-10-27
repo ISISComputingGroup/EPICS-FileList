@@ -1,0 +1,27 @@
+#FileList
+###################
+record(stringout, "$(P)DIR")
+{
+   field(DTYP, "asynOctetWrite")
+   field(OUT, "@asyn($(READ),0,1)DIRBASE")
+}
+
+record(stringin, "$(P)FILES")
+{
+	field(DTYP, "asynOctetRead")
+    field(INP, "@asyn($(READ),0,1)JARR")
+    field(PINI, "1")	
+}
+
+record(stringout, "$(P)SEARCH")
+{
+   field(DTYP, "asynOctetWrite")
+   field(OUT, "@asyn($(READ),0,1)SEARCH")
+}
+
+record(ai, "$(P)TEST")
+{
+	field(DTYP, "asynFloat64")
+    field(INP, "@asyn($(READ),0,1)TST")
+    field(PINI, "1")	
+}
