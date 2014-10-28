@@ -31,8 +31,9 @@ private:
 	char *pJSONOut_;
 	asynStatus parseList(char* regex, std::vector<std::string> *files);
 	asynStatus updateList();
-	asynStatus toJSON(std::vector<std::string> *files);
+	asynStatus toJSON(std::vector<std::string> *files, JSONNODE *n);
 	asynStatus getFullList(char* dirBase, std::vector<std::string> * dirs);
+	asynStatus compress(JSONNODE *n, char *pOut_);
 	
 #define FIRST_FileList_PARAM P_DirBase
 #define LAST_FileList_PARAM P_JSONOutArr

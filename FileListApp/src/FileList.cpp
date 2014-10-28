@@ -3,6 +3,7 @@
 #include <iostream>
 #include <pcrecpp.h>
 #include <libjson.h>
+#include <zlib.h>
 
 #include <epicsTypes.h>
 #include <epicsTime.h>
@@ -134,6 +135,8 @@ asynStatus FileList::updateList()
 	char search [EPICS_CHAR_LIM];
 	std::vector<std::string> files;
 	int status = asynSuccess;
+	JSONNODE *n = json_new(JSON_NODE);
+	char *pOut_ = (char *)calloc(INIT_CHAR_LIM, 1);
 
 	//get all files in directory
 	status |= getStringParam(P_DirBase, EPICS_CHAR_LIM, dirBase);
@@ -146,28 +149,36 @@ asynStatus FileList::updateList()
 
 	status |= parseList(search, &files);
 
-	for( std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
-		std::cerr << *i << std::endl;
-
 	//add appropriate files to PV
-	//status |= toJSON(&files);
-
-
-	return (asynStatus)status;
-}
-
-asynStatus FileList::toJSON(std::vector<std::string> *files)
-{
-
-	JSONNODE *n = json_new(JSON_ARRAY);
-	json_push_back(n, json_new_a("String Test", "Test"));
-
-	json_char *jc = json_write_formatted(n);
+	status |= toJSON(&files, n);
+	status |= compress(n, pOut_);
+	
+	
+	json_char *jc = json_write(n);
 
 	std::cerr << jc << std::endl;
 
 	json_free(jc);
 	json_delete(n);
+
+	return (asynStatus)status;
+}
+
+asynStatus FileList::compress(JSONNODE *n, char *pOut_)
+{
+	
+	return asynSuccess;
+}
+
+asynStatus FileList::toJSON(std::vector<std::string> *files, JSONNODE *n)
+{
+	JSONNODE *a = json_new(JSON_ARRAY);
+	json_set_name(a, "Array of Dirs");
+
+	for (std::vector<std::string>::iterator it = files->begin(); it != files->end(); ++it)
+		json_push_back(a, json_new_a(NULL, it->c_str()));
+
+	json_push_back(n, a);
 
 	return asynSuccess;
 }
@@ -219,15 +230,11 @@ asynStatus FileList::parseList(char* regex, std::vector<std::string> *files)
 	for (std::vector<std::string>::iterator it = files->begin(); it != files->end();)
 	{
 		std::string file = *it; 
-		std::cerr << file << std::endl;
 		if(0 > pcre_exec(re, NULL, file.c_str(), file.length(), 0, 0, NULL, NULL))
 			it = files->erase(it);
 		else
 			 ++it;
 	}
-
-	for (std::vector<std::string>::iterator it = files->begin(); it != files->end(); ++it)
-		std::cerr << *it << std::endl;
 
 	return asynSuccess;
 }
