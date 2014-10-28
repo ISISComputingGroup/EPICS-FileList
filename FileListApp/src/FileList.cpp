@@ -10,7 +10,7 @@
 #include <vector>
 #include <windows.h>
 #include <pcrecpp.h>
-//#include <libjson.h>
+#include <libjson.h>
 
 #include <epicsTypes.h>
 #include <epicsTime.h>
@@ -162,7 +162,6 @@ asynStatus FileList::updateList()
 asynStatus FileList::toJSON(std::vector<std::string> *files)
 {
 
-/*
 	JSONNODE *n = json_new(JSON_ARRAY);
 	json_push_back(n, json_new_a("String Test", "Test"));
 
@@ -172,7 +171,7 @@ asynStatus FileList::toJSON(std::vector<std::string> *files)
 
 	json_free(jc);
 	json_delete(n);
-*/	
+
 	return asynSuccess;
 }
 
