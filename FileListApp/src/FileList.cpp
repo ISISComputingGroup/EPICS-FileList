@@ -1,20 +1,6 @@
 #define PCRE_STATIC
 
-#ifdef _WIN32
-	#include <windows.h>
-	
-#else	
-	typedef char TCHAR;
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <math.h>
-#include <exception>
 #include <iostream>
-#include <vector>
 #include <pcrecpp.h>
 #include <libjson.h>
 
@@ -35,6 +21,8 @@
 #include <epicsGuard.h>
 
 #include <epicsExport.h>
+
+#include <utilities.h>
 
 #define INIT_CHAR_LIM 255
 #define EPICS_CHAR_LIM 40
@@ -142,8 +130,8 @@ asynStatus FileList::readOctet(asynUser *pasynUser, char *value, size_t maxChars
 
 asynStatus FileList::updateList()
 {
-	TCHAR dirBase [EPICS_CHAR_LIM];
-	TCHAR search [EPICS_CHAR_LIM];
+	char dirBase [EPICS_CHAR_LIM];
+	char search [EPICS_CHAR_LIM];
 	std::vector<std::string> files;
 	int status = asynSuccess;
 
@@ -158,8 +146,11 @@ asynStatus FileList::updateList()
 
 	status |= parseList(search, &files);
 
+	for( std::vector<std::string>::const_iterator i = files.begin(); i != files.end(); ++i)
+		std::cerr << *i << std::endl;
+
 	//add appropriate files to PV
-	status |= toJSON(&files);
+	//status |= toJSON(&files);
 
 
 	return (asynStatus)status;
@@ -181,38 +172,32 @@ asynStatus FileList::toJSON(std::vector<std::string> *files)
 	return asynSuccess;
 }
 
-asynStatus FileList::getFullList(TCHAR* dirBase, std::vector<std::string> *files)
+asynStatus FileList::getFullList(char* dirBase, std::vector<std::string> *files)
 {
-	#ifdef _WIN32
-	
-		//get list in Windows
-		WIN32_FIND_DATA fdFile;
-		HANDLE hFind;
+	struct dirent *pDirent;
+	DIR *pDir;
 
-		if (INVALID_HANDLE_VALUE == (hFind = FindFirstFile(dirBase, &fdFile)))
-		{
-			std::cerr << "Directory not found" << std::endl;
-			return asynError;
-		}
+	pDir = opendir(dirBase);
 
-		//First two files are '.' and '..' so skip
-		FindNextFile(hFind, &fdFile);
+    if (pDir == NULL) {
+        std::cerr << "Cannot open directory" << std::endl;
+        return asynError;
+    }
 
-		while(FindNextFile(hFind, &fdFile))
-			files->push_back(fdFile.cFileName);
+	//First two files are '.' and '..' so skip
+	readdir(pDir);
+	readdir(pDir);
 
-		FindClose(hFind);
-	#else
-	
-		//get list in linux
-	
-	#endif
-	
+    while ((pDirent = readdir(pDir)) != NULL) {
+       files->push_back(pDirent->d_name);
+    }
+    closedir (pDir);
+
 	return asynSuccess;
 
 }
 	
-asynStatus FileList::parseList(TCHAR* regex, std::vector<std::string> *files)
+asynStatus FileList::parseList(char* regex, std::vector<std::string> *files)
 {
 	pcre *re;
 	const char *error;

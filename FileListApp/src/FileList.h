@@ -29,10 +29,10 @@ protected:
 
 private:
 	char *pJSONOut_;
-	asynStatus parseList(TCHAR* regex, std::vector<std::string> *files);
+	asynStatus parseList(char* regex, std::vector<std::string> *files);
 	asynStatus updateList();
 	asynStatus toJSON(std::vector<std::string> *files);
-	asynStatus getFullList(TCHAR* dirBase, std::vector<std::string> * dirs);
+	asynStatus getFullList(char* dirBase, std::vector<std::string> * dirs);
 	
 #define FIRST_FileList_PARAM P_DirBase
 #define LAST_FileList_PARAM P_JSONOutArr
