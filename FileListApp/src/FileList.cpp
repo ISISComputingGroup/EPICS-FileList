@@ -1,5 +1,12 @@
 #define PCRE_STATIC
 
+#ifdef _WIN32
+	#include <windows.h>
+	
+#else	
+	typedef char TCHAR;
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,7 +15,6 @@
 #include <exception>
 #include <iostream>
 #include <vector>
-#include <windows.h>
 #include <pcrecpp.h>
 #include <libjson.h>
 
@@ -144,7 +150,7 @@ asynStatus FileList::updateList()
 	//get all files in directory
 	status |= getStringParam(P_DirBase, EPICS_CHAR_LIM, dirBase);
 
-	status |= getFullListWin(dirBase, &files);
+	status |= getFullList(dirBase, &files);
 
 	//search files
 
@@ -175,29 +181,37 @@ asynStatus FileList::toJSON(std::vector<std::string> *files)
 	return asynSuccess;
 }
 
-asynStatus FileList::getFullListWin(TCHAR* dirBase, std::vector<std::string> *files)
+asynStatus FileList::getFullList(TCHAR* dirBase, std::vector<std::string> *files)
 {
-	WIN32_FIND_DATA fdFile;
-	HANDLE hFind;
+	#ifdef _WIN32
+	
+		//get list in Windows
+		WIN32_FIND_DATA fdFile;
+		HANDLE hFind;
 
-	if (INVALID_HANDLE_VALUE == (hFind = FindFirstFile(dirBase, &fdFile)))
-	{
-		std::cerr << "Directory not found" << std::endl;
-		return asynError;
-	}
+		if (INVALID_HANDLE_VALUE == (hFind = FindFirstFile(dirBase, &fdFile)))
+		{
+			std::cerr << "Directory not found" << std::endl;
+			return asynError;
+		}
 
-	//First two files are '.' and '..' so skip
-	FindNextFile(hFind, &fdFile);
+		//First two files are '.' and '..' so skip
+		FindNextFile(hFind, &fdFile);
 
-	while(FindNextFile(hFind, &fdFile))
-		files->push_back(fdFile.cFileName);
+		while(FindNextFile(hFind, &fdFile))
+			files->push_back(fdFile.cFileName);
 
-	FindClose(hFind);
-
+		FindClose(hFind);
+	#else
+	
+		//get list in linux
+	
+	#endif
+	
 	return asynSuccess;
 
 }
-
+	
 asynStatus FileList::parseList(TCHAR* regex, std::vector<std::string> *files)
 {
 	pcre *re;
