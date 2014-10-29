@@ -25,24 +25,27 @@ $(APPNAME)_DBD += asSupport.dbd
 $(APPNAME)_DBD += devIocStats.dbd
 $(APPNAME)_DBD += caPutLog.dbd
 $(APPNAME)_DBD += utilities.dbd
-$(APPNAME)_DBD += asyn.dbd
+$(APPNAME)_DBD += asyn.dbd 
 $(APPNAME)_DBD += stream.dbd
-$(APPNAME)_DBD += FileList.dbd
+$(APPNAME)_DBD += libjson.dbd 
+
 ## add other dbd here ##
-#$(APPNAME)_DBD += xxx.dbd
+$(APPNAME)_DBD += FileList.dbd
 
 # Add all the support libraries needed by this IOC
 ## ISIS standard libraries ##
+$(APPNAME)_LIBS += FileList
 $(APPNAME)_LIBS += seqDev seq pv
 $(APPNAME)_LIBS += devIocStats 
 $(APPNAME)_LIBS += pvdump easySQLite sqlite 
 $(APPNAME)_LIBS += caPutLog
 $(APPNAME)_LIBS += icpconfig pugixml
 $(APPNAME)_LIBS += autosave
-$(APPNAME)_LIBS += utilities
+$(APPNAME)_LIBS += utilities 
 $(APPNAME)_LIBS += stream
-$(APPNAME)_LIBS += asyn
-$(APPNAME)_LIBS += FileList
+$(APPNAME)_LIBS += asyn 
+$(APPNAME)_LIBS += pcrecpp pcre 
+$(APPNAME)_LIBS += libjson
 ## Add other libraries here ##
 #$(APPNAME)_LIBS += xxx
 
