@@ -1,5 +1,3 @@
-#define PCRE_STATIC
-
 #include <iostream>
 #include <pcrecpp.h>
 #include <libjson.h>
@@ -210,31 +208,16 @@ asynStatus FileList::getFullList(char* dirBase, std::vector<std::string> *files)
 	
 asynStatus FileList::parseList(char* regex, std::vector<std::string> *files)
 {
-	pcre *re;
-	const char *error;
-	int erroffset;
+	pcrecpp::RE re(regex);
 
-	re = pcre_compile(
-	  regex,              /* the pattern */
-	  0,                    /* default options */
-	  &error,               /* for error message */
-	  &erroffset,           /* for error offset */
-	  NULL);                /* use default character tables */
-
-	if (re == NULL)
-	{
-		std::cerr << "PCRE compilation failed" << std::endl;
-		return asynError;
-	}
-
+	if (re.error().length() > 0) {
+          std::cerr << "PCRE compilation failed with error: " << re.error() << std::endl;
+    }
 	for (std::vector<std::string>::iterator it = files->begin(); it != files->end();)
-	{
-		std::string file = *it; 
-		if(0 > pcre_exec(re, NULL, file.c_str(), file.length(), 0, 0, NULL, NULL))
-			it = files->erase(it);
+		if (re.FullMatch(*it))
+			++it;
 		else
-			 ++it;
-	}
+			it = files->erase(it);
 
 	return asynSuccess;
 }
