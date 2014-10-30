@@ -1,6 +1,8 @@
 #include <iostream>
 #include <list>
 #include <string>
+#include <cstdlib>
+#include <cstring>
 
 #include <epicsTypes.h>
 #include <epicsTime.h>
