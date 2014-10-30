@@ -1,7 +1,6 @@
 #include <iostream>
-#include <pcrecpp.h>
-#include <libjson.h>
-#include <zlib.h>
+#include <list>
+#include <string>
 
 #include <epicsTypes.h>
 #include <epicsTime.h>
@@ -23,7 +22,7 @@
 
 #include <utilities.h>
 
-#define INIT_CHAR_LIM 255
+#define OUT_CHAR_LIM 16384
 #define EPICS_CHAR_LIM 40
 
 static const char *driverName="FileList";
@@ -48,22 +47,15 @@ FileList::FileList(const char *portName)
 	createParam(P_SearchString, asynParamOctet, &P_Search);
 	createParam(P_TestString, asynParamFloat64, &P_Test);
 	createParam(P_JSONArrString, asynParamOctet, &P_JSONOutArr);
-	
+
 	//Allocate column data
-	pJSONOut_ = (char *)calloc(INIT_CHAR_LIM, 1);
-
-	//Init
-	pJSONOut_[0] = 'D';
-	pJSONOut_[1] = 'O';
-	pJSONOut_[2] = 'M';
-
-	status |= setDoubleParam(P_Test, 10.01);
+	pJSONOut_ = (char *)calloc(OUT_CHAR_LIM, 1);
 
 	/* Do callbacks so higher layers see any changes */
 	status |= (asynStatus)callParamCallbacks();
 
 	if (status) {
-		std::cerr << status << "epicsThreadCreate failure\n" << std::endl;
+		std::cerr << status << "epicsThreadCreate failure" << std::endl;
 		return;
 	}
 
@@ -104,16 +96,16 @@ asynStatus FileList::readOctet(asynUser *pasynUser, char *value, size_t maxChars
 	//Return arrays when waveform is scanned
 	int ncopy = 0;
 	int function = pasynUser->reason;
-	asynStatus status = asynSuccess;
-	const char *functionName = "readOctetArray";
+	int status = asynSuccess;
+	const char *functionName = "readOctet";
 
 	if (maxChars < ncopy) ncopy = maxChars;
-	else ncopy = INIT_CHAR_LIM;
+	else ncopy = OUT_CHAR_LIM;
 	if (function == P_JSONOutArr) {
 		memcpy(value, pJSONOut_, ncopy);
 	}
 	*nActual = ncopy;
-	
+
 	if (status)
 		epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
 		"%s:%s: status=%d, function=%d",
@@ -122,104 +114,44 @@ asynStatus FileList::readOctet(asynUser *pasynUser, char *value, size_t maxChars
 		asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
 		"%s:%s: function=%d\n",
 		driverName, functionName, function);
-	return status;
-
-	return asynSuccess;
+	
+	return (asynStatus)status;
 }
 
 asynStatus FileList::updateList()
 {
 	char dirBase [EPICS_CHAR_LIM];
 	char search [EPICS_CHAR_LIM];
-	std::vector<std::string> files;
+	std::list<std::string> files;
 	int status = asynSuccess;
-	JSONNODE *n = json_new(JSON_NODE);
-	char *pOut_ = (char *)calloc(INIT_CHAR_LIM, 1);
+	std::string out;
 
 	//get all files in directory
 	status |= getStringParam(P_DirBase, EPICS_CHAR_LIM, dirBase);
 
-	status |= getFullList(dirBase, &files);
+	getFileList(dirBase, files);
 
 	//search files
 
 	status |= getStringParam(P_Search, EPICS_CHAR_LIM, search);
 
-	status |= parseList(search, &files);
+	status |= filterList(files, search);
 
 	//add appropriate files to PV
-	status |= toJSON(&files, n);
-	status |= compress(n, pOut_);
+	std::string tOut = json_list_to_array(files);
+	status |= compressString(tOut, out);
 	
-	
-	json_char *jc = json_write(n);
+	std::cerr << "Before: " << tOut.size() << "    After: " << out.size() << std::endl;
 
-	std::cerr << jc << std::endl;
+	if (out.size() < OUT_CHAR_LIM)
+		std::copy(out.begin(), out.end(), pJSONOut_);
+	else
+		std::cerr << "File list too long: " << out.size() << std::endl;
 
-	json_free(jc);
-	json_delete(n);
+	status |= uncompressString(out, tOut);
+	std::cerr << tOut << std::endl;
 
 	return (asynStatus)status;
-}
-
-asynStatus FileList::compress(JSONNODE *n, char *pOut_)
-{
-	
-	return asynSuccess;
-}
-
-asynStatus FileList::toJSON(std::vector<std::string> *files, JSONNODE *n)
-{
-	JSONNODE *a = json_new(JSON_ARRAY);
-	json_set_name(a, "Array of Dirs");
-
-	for (std::vector<std::string>::iterator it = files->begin(); it != files->end(); ++it)
-		json_push_back(a, json_new_a(NULL, it->c_str()));
-
-	json_push_back(n, a);
-
-	return asynSuccess;
-}
-
-asynStatus FileList::getFullList(char* dirBase, std::vector<std::string> *files)
-{
-	struct dirent *pDirent;
-	DIR *pDir;
-
-	pDir = opendir(dirBase);
-
-    if (pDir == NULL) {
-        std::cerr << "Cannot open directory" << std::endl;
-        return asynError;
-    }
-
-	//First two files are '.' and '..' so skip
-	readdir(pDir);
-	readdir(pDir);
-
-    while ((pDirent = readdir(pDir)) != NULL) {
-       files->push_back(pDirent->d_name);
-    }
-    closedir (pDir);
-
-	return asynSuccess;
-
-}
-	
-asynStatus FileList::parseList(char* regex, std::vector<std::string> *files)
-{
-	pcrecpp::RE re(regex);
-
-	if (re.error().length() > 0) {
-          std::cerr << "PCRE compilation failed with error: " << re.error() << std::endl;
-    }
-	for (std::vector<std::string>::iterator it = files->begin(); it != files->end();)
-		if (re.FullMatch(*it))
-			++it;
-		else
-			it = files->erase(it);
-
-	return asynSuccess;
 }
 
 extern "C" {

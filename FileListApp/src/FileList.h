@@ -5,12 +5,12 @@
 
 #include "asynPortDriver.h"
 #include <time.h>
-#include <vector>
+#include <list>
 #include <string>
 
 #define DIR_LENGTH 260
 
-/// Driver for Ramping SPs and Reading PIDs
+/// Driver for returning a list of files within a directory
 class FileList : public asynPortDriver 
 {
 public:
@@ -29,12 +29,8 @@ protected:
 
 private:
 	char *pJSONOut_;
-	asynStatus parseList(char* regex, std::vector<std::string> *files);
 	asynStatus updateList();
-	asynStatus toJSON(std::vector<std::string> *files, JSONNODE *n);
-	asynStatus getFullList(char* dirBase, std::vector<std::string> * dirs);
-	asynStatus compress(JSONNODE *n, char *pOut_);
-	
+
 #define FIRST_FileList_PARAM P_DirBase
 #define LAST_FileList_PARAM P_JSONOutArr
 	

@@ -6,22 +6,17 @@ record(stringout, "$(P)DIR")
    field(OUT, "@asyn($(READ),0,1)DIRBASE")
 }
 
-record(stringin, "$(P)FILES")
+record(waveform, "$(P)FILES")
 {
+	field(FTVL, "CHAR")
 	field(DTYP, "asynOctetRead")
-    field(INP, "@asyn($(READ),0,1)JARR")
-    field(PINI, "1")	
+    field(INP, "@asyn($(READ),0,1)JARR")	
+	field(NELM, 16384)
+	field(SCAN, "1 second")
 }
 
 record(stringout, "$(P)SEARCH")
 {
    field(DTYP, "asynOctetWrite")
    field(OUT, "@asyn($(READ),0,1)SEARCH")
-}
-
-record(ai, "$(P)TEST")
-{
-	field(DTYP, "asynFloat64")
-    field(INP, "@asyn($(READ),0,1)TST")
-    field(PINI, "1")	
 }
