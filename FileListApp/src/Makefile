@@ -18,7 +18,7 @@ DBD += FileList.dbd
 # specify all source files to be compiled and added to the library
 FileList_SRCS += FileList.cpp
 
-FileList_LIBS += asyn pcre pcrecpp libjson utilities zlib
+FileList_LIBS += asyn pcre pcrecpp utilities libjson zlib
 FileList_LIBS += $(EPICS_BASE_IOC_LIBS)
 FileList_SYS_LIBS_WIN32 += ws2_32
 

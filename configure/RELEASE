@@ -48,7 +48,6 @@ ONCRPC=$(SUPPORT)/oncrpc/2
 SSCAN=$(SUPPORT)/sscan/2-8
 PCRE=$(SUPPORT)/pcre
 STREAMDEVICE=$(SUPPORT)/StreamDevice
-LIBJSON=$(SUPPORT)/libjson
 
 ## add other modules here ##
 
