@@ -14,11 +14,9 @@
 class FileList : public asynPortDriver 
 {
 public:
-    FileList(const char* portName);
+    FileList(const char* portName, const char *searchDir, const char *searchPat);
 
 	virtual asynStatus writeOctet(asynUser *pasynUser, const char *value, size_t maxChars, size_t *nActual);
-
-	virtual asynStatus readOctet(asynUser *pasynUser, char *value, size_t maxChars, size_t *nActual, int *eomReason);
 
 protected:
 	int P_DirBase; // string
