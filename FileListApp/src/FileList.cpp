@@ -12,6 +12,7 @@
 #include <epicsMutex.h>
 #include <epicsEvent.h>
 #include <iocsh.h>
+#include <efsw.hpp>
 
 #include <sys/stat.h>
 
@@ -28,6 +29,24 @@
 #define EPICS_CHAR_LIM 40
 
 static const char *driverName="FileList";
+
+/// Processes a file action
+class UpdateListener : public efsw::FileWatchListener
+{
+	private:
+		FileList * parent;
+
+	public:
+		UpdateListener() : parent(nullptr) {}
+
+		void setParent (FileList * par ) {parent = par;}
+
+		void handleFileAction( efsw::WatchID watchid, const std::string& dir, const std::string& filename, efsw::Action action, std::string oldFilename = ""  )
+		{
+			parent->updateList();
+		}
+};
+
 
 /// Constructor for the FileList class.
 /// Calls constructor for the asynPortDriver base class.
@@ -49,13 +68,16 @@ FileList::FileList(const char *portName, const char *searchDir, const char *sear
 	createParam(P_SearchString, asynParamOctet, &P_Search);
 	createParam(P_TestString, asynParamFloat64, &P_Test);
 	createParam(P_JSONArrString, asynParamOctet, &P_JSONOutArr);
+	eventId_ = epicsEventCreate(epicsEventEmpty);
 
 	//Allocate column data
 	pJSONOut_ = (char *)calloc(OUT_CHAR_LIM, 1);
 
 	//Init
+	fileWatcher = new efsw::FileWatcher ();
 	setStringParam(P_DirBase, searchDir);
 	setStringParam(P_Search, searchPat);
+	addFileWatcher(searchDir);
 	updateList();
 
 	/* Do callbacks so higher layers see any changes */
@@ -84,6 +106,9 @@ asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t m
 
 	if (function == P_Search || function == P_DirBase) {
 		updateList();
+
+		if (function == P_DirBase)
+			addFileWatcher(value);
 	}
 
 	/* Do callbacks so higher layers see any changes */
@@ -98,6 +123,29 @@ asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t m
 	return (asynStatus)status;
 }
 
+asynStatus FileList::addFileWatcher(const char *dir)
+{
+	//Create listener
+	UpdateListener * listener = new UpdateListener();
+	listener->setParent(this);
+
+	//Remove previous watch
+	fileWatcher->removeWatch(0);
+
+	// Adds a non-recursive watch.
+	efsw::WatchID watchID = fileWatcher->addWatch( dir, listener, false);
+	if (watchID < 0)
+	{
+		std::cerr << efsw::Errors::Log::getLastErrorLog().c_str() << std::endl;
+		return asynError;
+	}
+
+	// Start watching asynchronously the directories
+	fileWatcher->watch();
+
+	return asynSuccess;
+}
+
 asynStatus FileList::updateList()
 {
 	char dirBase [EPICS_CHAR_LIM];
@@ -105,6 +153,8 @@ asynStatus FileList::updateList()
 	std::list<std::string> files;
 	int status = asynSuccess;
 	std::string out;
+
+	lock();
 
 	//get all files in directory
 	status |= getStringParam(P_DirBase, EPICS_CHAR_LIM, dirBase);
@@ -120,8 +170,6 @@ asynStatus FileList::updateList()
 	//add appropriate files to PV
 	std::string tOut = json_list_to_array(files);
 	status |= compressString(tOut, out);
-	
-	std::cerr << "Before: " << tOut.size() << "    After: " << out.size() << std::endl;
 
 	if (out.size() < OUT_CHAR_LIM)
 		std::copy(out.begin(), out.end(), pJSONOut_);
@@ -132,6 +180,8 @@ asynStatus FileList::updateList()
 	std::cerr << tOut << std::endl;
 
 	status |= setStringParam(P_JSONOutArr, pJSONOut_);
+
+	unlock();
 
 	return (asynStatus)status;
 }

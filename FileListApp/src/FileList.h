@@ -17,18 +17,19 @@ public:
     FileList(const char* portName, const char *searchDir, const char *searchPat);
 
 	virtual asynStatus writeOctet(asynUser *pasynUser, const char *value, size_t maxChars, size_t *nActual);
+	asynStatus updateList();
 
 protected:
 	int P_DirBase; // string
 	int P_Search; //string
 	int P_Test; //float
-
 	int P_JSONOutArr; //string Array
 
 private:
+	epicsEventId eventId_;
 	char *pJSONOut_;
-	asynStatus updateList();
-
+	efsw::FileWatcher * fileWatcher;
+	asynStatus addFileWatcher(const char *dir);
 #define FIRST_FileList_PARAM P_DirBase
 #define LAST_FileList_PARAM P_JSONOutArr
 	
