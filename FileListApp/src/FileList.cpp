@@ -37,7 +37,7 @@ class UpdateListener : public efsw::FileWatchListener
 		FileList * parent;
 
 	public:
-		UpdateListener() : parent(nullptr) {}
+		UpdateListener() : parent(NULL) {}
 
 		void setParent (FileList * par ) {parent = par;}
 

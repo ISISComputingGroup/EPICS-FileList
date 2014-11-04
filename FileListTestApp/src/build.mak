@@ -45,7 +45,7 @@ $(APPNAME)_LIBS += utilities
 $(APPNAME)_LIBS += stream
 $(APPNAME)_LIBS += asyn 
 $(APPNAME)_LIBS += pcrecpp pcre 
-$(APPNAME)_LIBS += libjson zlib
+$(APPNAME)_LIBS += libjson zlib efsw
 ## Add other libraries here ##
 #$(APPNAME)_LIBS += xxx
 
