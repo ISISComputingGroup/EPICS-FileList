@@ -181,6 +181,9 @@ asynStatus FileList::updateList()
 
 	status |= setStringParam(P_JSONOutArr, pJSONOut_);
 
+	/* Do callbacks so higher layers see any changes */
+	status |= (asynStatus)callParamCallbacks();
+
 	unlock();
 
 	return (asynStatus)status;
