@@ -29,6 +29,7 @@ private:
 	epicsEventId eventId_;
 	char *pJSONOut_;
 	efsw::FileWatcher * fileWatcher;
+	efsw::WatchID watchID;
 	asynStatus addFileWatcher(const char *dir);
 #define FIRST_FileList_PARAM P_DirBase
 #define LAST_FileList_PARAM P_JSONOutArr

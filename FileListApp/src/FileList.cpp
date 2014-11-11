@@ -130,10 +130,10 @@ asynStatus FileList::addFileWatcher(const char *dir)
 	listener->setParent(this);
 
 	//Remove previous watch
-	fileWatcher->removeWatch(0);
+	fileWatcher->removeWatch(watchID);
 
 	// Adds a non-recursive watch.
-	efsw::WatchID watchID = fileWatcher->addWatch( dir, listener, false);
+	watchID = fileWatcher->addWatch( dir, listener, false);
 	if (watchID < 0)
 	{
 		std::cerr << efsw::Errors::Log::getLastErrorLog().c_str() << std::endl;
@@ -176,8 +176,10 @@ asynStatus FileList::updateList()
 	else
 		std::cerr << "File list too long: " << out.size() << std::endl;
 
+	/*
 	status |= uncompressString(out, tOut);
 	std::cerr << tOut << std::endl;
+	*/
 
 	status |= setStringParam(P_JSONOutArr, pJSONOut_);
 
