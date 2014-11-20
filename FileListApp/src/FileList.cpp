@@ -188,7 +188,6 @@ void FileList::watchFiles(void)
 			void handleFileAction( efsw::WatchID watchid, const std::string& dir, const std::string& filename, efsw::Action action, std::string oldFilename = ""  )
 			{
 				parent->updateList();
-				std::cerr << "Updated! Watch:" << watchid << std::endl; 
 			}
 	};
 
@@ -219,8 +218,6 @@ void FileList::watchFiles(void)
 				directory[strlen(directory)-1] = 0;
 			}
 		}
-
-		std::cerr << "Request sent: " << directory << std::endl;
 
 		//Remove previous watch
 		if (watchID > 0)
