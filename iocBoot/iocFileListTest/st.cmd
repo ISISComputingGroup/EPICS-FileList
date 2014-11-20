@@ -18,7 +18,7 @@ FileListTest_registerRecordDeviceDriver pdbbase
 < $(IOCSTARTUP)/init.cmd
 
 ## Load record instances
-FileListConfigure("FILE", "C:\InstrumentSettings\", ".*a.*")
+FileListConfigure("FILE", "C:\InstrumentSettings\", ".*")
 
 ##ISIS## Load common DB records 
 < $(IOCSTARTUP)/dbload.cmd

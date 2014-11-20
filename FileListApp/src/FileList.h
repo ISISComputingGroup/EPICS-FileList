@@ -4,8 +4,6 @@
 /// @file FileList.h Header for read ASCII driver
 
 #include "asynPortDriver.h"
-#include <time.h>
-#include <list>
 #include <string>
 
 #define DIR_LENGTH 260
@@ -18,19 +16,18 @@ public:
 
 	virtual asynStatus writeOctet(asynUser *pasynUser, const char *value, size_t maxChars, size_t *nActual);
 	asynStatus updateList();
+	void watchFiles(void);
 
 protected:
 	int P_DirBase; // string
 	int P_Search; //string
-	int P_Test; //float
+	int P_CaseSensitive; //integer
 	int P_JSONOutArr; //string Array
 
 private:
 	epicsEventId eventId_;
 	char *pJSONOut_;
-	efsw::FileWatcher * fileWatcher;
-	efsw::WatchID watchID;
-	asynStatus addFileWatcher(const char *dir);
+	epicsMessageQueue watchQueue_;
 #define FIRST_FileList_PARAM P_DirBase
 #define LAST_FileList_PARAM P_JSONOutArr
 	
@@ -40,7 +37,7 @@ private:
 
 #define P_DirBaseString "DIRBASE"
 #define P_SearchString "SEARCH"
-#define P_TestString "TST"
+#define P_CaseString "CASE"
 
 #define P_JSONArrString "JARR"
 

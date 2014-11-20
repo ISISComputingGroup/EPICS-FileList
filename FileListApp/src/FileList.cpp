@@ -13,6 +13,7 @@
 #include <epicsEvent.h>
 #include <iocsh.h>
 #include <efsw.hpp>
+#include "epicsMessageQueue.h"
 
 #include <sys/stat.h>
 
@@ -30,23 +31,7 @@
 
 static const char *driverName="FileList";
 
-/// Processes a file action
-class UpdateListener : public efsw::FileWatchListener
-{
-	private:
-		FileList * parent;
-
-	public:
-		UpdateListener() : parent(NULL) {}
-
-		void setParent (FileList * par ) {parent = par;}
-
-		void handleFileAction( efsw::WatchID watchid, const std::string& dir, const std::string& filename, efsw::Action action, std::string oldFilename = ""  )
-		{
-			parent->updateList();
-		}
-};
-
+static void fileWatcherThreadC(void *pPvt);
 
 /// Constructor for the FileList class.
 /// Calls constructor for the asynPortDriver base class.
@@ -54,35 +39,42 @@ FileList::FileList(const char *portName, const char *searchDir, const char *sear
    : asynPortDriver(portName, 
                     4, /* maxAddr */ 
                     NUM_FileList_PARAMS,
-					asynOctetMask | asynDrvUserMask | asynFloat64Mask, /* Interface mask */
-                    asynOctetMask | asynFloat64Mask,  /* Interrupt mask */
+					asynInt32Mask | asynOctetMask | asynDrvUserMask | asynFloat64Mask, /* Interface mask */
+                    asynInt32Mask | asynOctetMask | asynFloat64Mask,  /* Interrupt mask */
                     0, /* asynFlags.  This driver can block but it is not multi-device */
                     1, /* Autoconnect */
                     0, /* Default priority */
-                    0)	/* Default stack size*/
+                    0)	/* Default stack size*/,
+	watchQueue_(10, sizeof(char *))
 {
 	int status = asynSuccess;
     const char *functionName = "FileList";
 
 	createParam(P_DirBaseString, asynParamOctet, &P_DirBase);
 	createParam(P_SearchString, asynParamOctet, &P_Search);
-	createParam(P_TestString, asynParamFloat64, &P_Test);
+	createParam(P_CaseString, asynParamInt32, &P_CaseSensitive);
 	createParam(P_JSONArrString, asynParamOctet, &P_JSONOutArr);
-	eventId_ = epicsEventCreate(epicsEventEmpty);
 
 	//Allocate column data
 	pJSONOut_ = (char *)calloc(OUT_CHAR_LIM, 1);
 
-	//Init
-	fileWatcher = new efsw::FileWatcher ();
 	setStringParam(P_DirBase, searchDir);
 	setStringParam(P_Search, searchPat);
-	addFileWatcher(searchDir);
-	updateList();
+	setIntegerParam(P_CaseSensitive, 0);
+
+	// Start filewatcher
+	char * str = strdup(searchDir);
+	watchQueue_.send((void*)&str, sizeof(char*));
 
 	/* Do callbacks so higher layers see any changes */
 	status |= (asynStatus)callParamCallbacks();
 
+	// Create the thread that will service the file watcher
+	// To write to the controller
+	epicsThreadCreate("fileWatcher", 
+                    epicsThreadPriorityMax,
+                    epicsThreadGetStackSize(epicsThreadStackMedium),
+                    (EPICSTHREADFUNC)fileWatcherThreadC, (void *)this);
 	if (status) {
 		std::cerr << status << "epicsThreadCreate failure" << std::endl;
 		return;
@@ -105,10 +97,15 @@ asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t m
 	getParamName(function, &paramName);
 
 	if (function == P_Search || function == P_DirBase) {
-		updateList();
 
-		if (function == P_DirBase)
-			addFileWatcher(value);
+		status = updateList();
+
+		if ( (status == asynSuccess) && (function == P_DirBase) )
+		{
+			//change watching directory
+			char * str = strdup(value);
+			watchQueue_.send((void*)&str, sizeof(char*));
+		}
 	}
 
 	/* Do callbacks so higher layers see any changes */
@@ -123,33 +120,11 @@ asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t m
 	return (asynStatus)status;
 }
 
-asynStatus FileList::addFileWatcher(const char *dir)
-{
-	//Create listener
-	UpdateListener * listener = new UpdateListener();
-	listener->setParent(this);
-
-	//Remove previous watch
-	fileWatcher->removeWatch(watchID);
-
-	// Adds a non-recursive watch.
-	watchID = fileWatcher->addWatch( dir, listener, false);
-	if (watchID < 0)
-	{
-		std::cerr << efsw::Errors::Log::getLastErrorLog().c_str() << std::endl;
-		return asynError;
-	}
-
-	// Start watching asynchronously the directories
-	fileWatcher->watch();
-
-	return asynSuccess;
-}
-
 asynStatus FileList::updateList()
 {
 	char dirBase [EPICS_CHAR_LIM];
 	char search [EPICS_CHAR_LIM];
+	int caseSense;
 	std::list<std::string> files;
 	int status = asynSuccess;
 	std::string out;
@@ -159,14 +134,25 @@ asynStatus FileList::updateList()
 	//get all files in directory
 	status |= getStringParam(P_DirBase, EPICS_CHAR_LIM, dirBase);
 
-	getFileList(dirBase, files);
+	if (getFileList(dirBase, files) == -1)
+	{
+		std::cerr << "Directory not found: " << dirBase << std::endl;
+		unlock();
+		return asynError;
+	}
 
 	//search files
-
 	status |= getStringParam(P_Search, EPICS_CHAR_LIM, search);
 
-	status |= filterList(files, search);
+	status |= getIntegerParam(P_CaseSensitive, &caseSense);
 
+	if (caseSense == 0)
+	{
+		status |= filterList(files, std::string("(?i)").append(search));
+	} else {
+		status |= filterList(files, search);
+	}
+	
 	//add appropriate files to PV
 	std::string tOut = json_list_to_array(files);
 	status |= compressString(tOut, out);
@@ -176,11 +162,6 @@ asynStatus FileList::updateList()
 	else
 		std::cerr << "File list too long: " << out.size() << std::endl;
 
-	/*
-	status |= uncompressString(out, tOut);
-	std::cerr << tOut << std::endl;
-	*/
-
 	status |= setStringParam(P_JSONOutArr, pJSONOut_);
 
 	/* Do callbacks so higher layers see any changes */
@@ -189,6 +170,85 @@ asynStatus FileList::updateList()
 	unlock();
 
 	return (asynStatus)status;
+}
+
+void FileList::watchFiles(void)
+{
+	/// Processes a file action
+	class UpdateListener : public efsw::FileWatchListener
+	{
+		private:
+			FileList * parent;
+
+		public:
+			UpdateListener() : parent(NULL) {}
+
+			void setParent (FileList * par ) {parent = par;}
+
+			void handleFileAction( efsw::WatchID watchid, const std::string& dir, const std::string& filename, efsw::Action action, std::string oldFilename = ""  )
+			{
+				parent->updateList();
+				std::cerr << "Updated! Watch:" << watchid << std::endl; 
+			}
+	};
+
+	efsw::FileWatcher * watcher = new efsw::FileWatcher ();
+	
+	//Create listener
+	UpdateListener * listener = new UpdateListener ();
+	listener->setParent(this);
+
+	//Keep track of watches
+	efsw::WatchID watchID = -1;
+
+	char * directory; 
+
+	while (true)
+	{
+		watchQueue_.receive(&directory, sizeof(char*));
+
+		//Strip final slash (fudge due to poor programming in efsw)
+		char final = directory[strlen(directory)-1];
+		if ( (final == '/') || (final == '\\') )
+		{
+			if (directory[strlen(directory)-2] == ':')
+			{
+				//root directory
+				directory[strlen(directory)-1] = '/';
+			} else {
+				directory[strlen(directory)-1] = 0;
+			}
+		}
+
+		std::cerr << "Request sent: " << directory << std::endl;
+
+		//Remove previous watch
+		if (watchID > 0)
+		{
+			watcher->removeWatch(watchID);
+		}
+	
+		// Adds a non-recursive watch.
+		watchID = watcher->addWatch( directory, listener);
+	
+		//Check for error
+		if (watchID < 0)
+		{
+			std::cerr << "FileWatcher, " << efsw::Errors::Log::getLastErrorLog().c_str() << std::endl;
+		}
+
+		// Start watching the directories asynchronously
+		watcher->watch();
+
+		delete directory;
+	}
+}
+
+/* C Function which runs the fileWatcher thread */ 
+static void fileWatcherThreadC(void *pPvt)
+{
+	FileList *list = (FileList*)pPvt;
+	list->watchFiles();
 }
 
 extern "C" {

@@ -20,3 +20,11 @@ record(stringout, "$(P)SEARCH")
    field(DTYP, "asynOctetWrite")
    field(OUT, "@asyn($(READ),0,1)SEARCH")
 }
+
+record(bo, "$(P)CASESENSITIVE")
+{
+	field(DTYP, "asynInt32")
+	field(OUT, "@asyn($(READ),0,1)CASE")
+	field(ZNAM, "Insensitive")
+    field(ONAM, "Sensitive")
+}	
