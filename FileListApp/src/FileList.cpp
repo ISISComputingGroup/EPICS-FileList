@@ -61,6 +61,7 @@ FileList::FileList(const char *portName, const char *searchDir, const char *sear
 	setStringParam(P_DirBase, searchDir);
 	setStringParam(P_Search, searchPat);
 	setIntegerParam(P_CaseSensitive, 0);
+	updateList();
 
 	// Start filewatcher
 	char * str = strdup(searchDir);
