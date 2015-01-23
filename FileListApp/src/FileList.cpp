@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 
 #include <epicsTypes.h>
 #include <epicsTime.h>
@@ -35,7 +36,7 @@ static void fileWatcherThreadC(void *pPvt);
 
 /// Constructor for the FileList class.
 /// Calls constructor for the asynPortDriver base class.
-FileList::FileList(const char *portName, const char *searchDir, const char *searchPat) 
+FileList::FileList(const char *portName, const char *searchDir, const char *searchPat, int fullPath) 
    : asynPortDriver(portName, 
                     4, /* maxAddr */ 
                     NUM_FileList_PARAMS,
@@ -45,7 +46,7 @@ FileList::FileList(const char *portName, const char *searchDir, const char *sear
                     1, /* Autoconnect */
                     0, /* Default priority */
                     0)	/* Default stack size*/,
-	watchQueue_(10, sizeof(char *))
+	watchQueue_(10, sizeof(char *)), m_fullPath(fullPath != 0 ? true : false)
 {
 	int status = asynSuccess;
     const char *functionName = "FileList";
@@ -154,6 +155,16 @@ asynStatus FileList::updateList()
 		status |= filterList(files, search);
 	}
 	
+	if (m_fullPath)
+	{
+	    std::string dir_prefix = std::string(dirBase) + "/";
+	    std::replace(dir_prefix.begin(), dir_prefix.end(), '\\', '/');
+		for(std::list<std::string>::iterator it = files.begin(); it != files.end(); ++it)
+		{
+		    it->insert(0, dir_prefix);
+		}
+	}
+	
 	//add appropriate files to PV
 	std::string tOut = json_list_to_array(files);
 	status |= compressString(tOut, out);
@@ -255,11 +266,12 @@ extern "C" {
 /// \param[in] portName The name of the asyn port driver to be created.
 /// \param[in] searchDir The directory to be searched
 /// \param[in] searchPattern The regex to search for
-int FileListConfigure(const char *portName, const char *searchDir, const char *searchPat)
+/// \param[in] fullPath Set to 1 to return full path name of files (otherwise just names are returned)
+int FileListConfigure(const char *portName, const char *searchDir, const char *searchPat, int fullPath)
 {
 	try
 	{
-		new FileList(portName, searchDir, searchPat);
+		new FileList(portName, searchDir, searchPat, fullPath);
 		return(asynSuccess);
 	}
 	catch(const std::exception& ex)
@@ -274,14 +286,15 @@ int FileListConfigure(const char *portName, const char *searchDir, const char *s
 static const iocshArg initArg0 = { "portName", iocshArgString};			///< The name of the asyn driver port we will create
 static const iocshArg initArg1 = { "searchDir",iocshArgString};
 static const iocshArg initArg2 = { "searchPattern",iocshArgString};
+static const iocshArg initArg3 = { "fullPath",iocshArgInt};
 
-static const iocshArg * const initArgs[] = { &initArg0, &initArg1, &initArg2 };
+static const iocshArg * const initArgs[] = { &initArg0, &initArg1, &initArg2, &initArg3 };
 
 static const iocshFuncDef initFuncDef = {"FileListConfigure", sizeof(initArgs) / sizeof(iocshArg*), initArgs};
 
 static void initCallFunc(const iocshArgBuf *args)
 {
-    FileListConfigure(args[0].sval, args[1].sval, args[2].sval);
+    FileListConfigure(args[0].sval, args[1].sval, args[2].sval, args[3].ival);
 }
 
 static void FileListRegister(void)

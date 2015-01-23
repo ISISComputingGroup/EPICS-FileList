@@ -12,13 +12,14 @@
 class FileList : public asynPortDriver 
 {
 public:
-    FileList(const char* portName, const char *searchDir, const char *searchPat);
+    FileList(const char* portName, const char *searchDir, const char *searchPat, int fullPath);
 
 	virtual asynStatus writeOctet(asynUser *pasynUser, const char *value, size_t maxChars, size_t *nActual);
 	asynStatus updateList();
 	void watchFiles(void);
 
 protected:
+    bool m_fullPath;
 	int P_DirBase; // string
 	int P_Search; //string
 	int P_CaseSensitive; //integer
