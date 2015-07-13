@@ -29,6 +29,7 @@
 
 #define OUT_CHAR_LIM 16384
 #define EPICS_CHAR_LIM 40
+#define INPUT_WAVEFORM_LIM 256
 
 static const char *driverName="FileList";
 
@@ -87,16 +88,27 @@ FileList::FileList(const char *portName, const char *searchDir, const char *sear
 asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t maxChars, size_t *nActual)
 {
 	//Checks if directory has changed, reads file again if it has
-	int function = pasynUser->reason;
-	int status = asynSuccess;
-	const char *paramName;
-	const char* functionName = "writeOctet";
+    int function = pasynUser->reason;
+    int status = asynSuccess;
+    const char *paramName = NULL;
+	getParamName(function, &paramName);
+    const char* functionName = "writeOctet";
+	std::string value_s;
+    
+    // we might get an embedded NULL from channel access char waveform records
+    if ( (maxChars > 0) && (value[maxChars-1] == '\0') )
+    {
+        value_s.assign(value, maxChars-1);
+    }
+    else
+    {
+        value_s.assign(value, maxChars);
+    }
+    
+    std::cout << value_s << std::endl;
 
 	/* Set the parameter in the parameter library. */
-	status = (asynStatus)setStringParam(function, value);
-
-	/* Fetch the parameter string name for possible use in debugging */
-	getParamName(function, &paramName);
+	status = (asynStatus)setStringParam(function, value_s.c_str());
 
 	if (function == P_Search || function == P_DirBase) {
 
@@ -105,7 +117,7 @@ asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t m
 		if ( (status == asynSuccess) && (function == P_DirBase) )
 		{
 			//change watching directory
-			char * str = strdup(value);
+			char * str = strdup(value_s.c_str());
 			watchQueue_.send((void*)&str, sizeof(char*));
 		}
 	}
@@ -116,16 +128,19 @@ asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t m
 	if (status)
 		epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
 		"%s:%s: status=%d, function=%d, name=%s, value=%d",
-		driverName, functionName, status, function, paramName, value);
+		driverName, functionName, status, function, paramName, value_s.c_str());
 
-	*nActual = maxChars;
+	if (status == asynSuccess)
+    {
+        *nActual = maxChars;   // To keep result happy in case we skipped an embedded trailing NULL
+    }
 	return (asynStatus)status;
 }
 
 asynStatus FileList::updateList()
 {
-	char dirBase [EPICS_CHAR_LIM];
-	char search [EPICS_CHAR_LIM];
+	char dirBase[INPUT_WAVEFORM_LIM];
+	char search[INPUT_WAVEFORM_LIM];
 	int caseSense;
 	std::list<std::string> files;
 	int status = asynSuccess;
@@ -134,7 +149,7 @@ asynStatus FileList::updateList()
 	lock();
 
 	//get all files in directory
-	status |= getStringParam(P_DirBase, EPICS_CHAR_LIM, dirBase);
+	status |= getStringParam(P_DirBase, INPUT_WAVEFORM_LIM, dirBase);
 
 	if (getFileList(dirBase, files) == -1)
 	{
@@ -144,7 +159,7 @@ asynStatus FileList::updateList()
 	}
 
 	//search files
-	status |= getStringParam(P_Search, EPICS_CHAR_LIM, search);
+	status |= getStringParam(P_Search, INPUT_WAVEFORM_LIM, search);
 
 	status |= getIntegerParam(P_CaseSensitive, &caseSense);
 

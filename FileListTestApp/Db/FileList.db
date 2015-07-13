@@ -1,9 +1,11 @@
 #FileList
 ###################
-record(stringout, "$(P)DIR")
+record(waveform, "$(P)DIR")
 {
    field(DTYP, "asynOctetWrite")
-   field(OUT, "@asyn($(READ),0,1)DIRBASE")
+   field(INP, "@asyn($(READ),0,1)DIRBASE")
+   field(FTVL, "CHAR")
+   field(NELM, 256)
 }
 
 record(waveform, "$(P)FILES")
@@ -15,10 +17,12 @@ record(waveform, "$(P)FILES")
 	field(SCAN, "I/O Intr")
 }
 
-record(stringout, "$(P)SEARCH")
+record(waveform, "$(P)SEARCH")
 {
    field(DTYP, "asynOctetWrite")
-   field(OUT, "@asyn($(READ),0,1)SEARCH")
+   field(INP, "@asyn($(READ),0,1)SEARCH")
+   field(FTVL, "CHAR")
+   field(NELM, 256)
 }
 
 record(bo, "$(P)CASESENSITIVE")
