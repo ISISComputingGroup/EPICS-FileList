@@ -39,11 +39,11 @@ static void fileWatcherThreadC(void *pPvt);
 /// Calls constructor for the asynPortDriver base class.
 FileList::FileList(const char *portName, const char *searchDir, const char *searchPat, int fullPath) 
    : asynPortDriver(portName, 
-                    4, /* maxAddr */ 
+                    0, /* maxAddr */ 
                     NUM_FileList_PARAMS,
 					asynInt32Mask | asynOctetMask | asynDrvUserMask | asynFloat64Mask, /* Interface mask */
                     asynInt32Mask | asynOctetMask | asynFloat64Mask,  /* Interrupt mask */
-                    0, /* asynFlags.  This driver can block but it is not multi-device */
+                    ASYN_CANBLOCK, /* asynFlags.  This driver can block but it is not multi-device */
                     1, /* Autoconnect */
                     0, /* Default priority */
                     0)	/* Default stack size*/,
@@ -74,12 +74,16 @@ FileList::FileList(const char *portName, const char *searchDir, const char *sear
 
 	// Create the thread that will service the file watcher
 	// To write to the controller
-	epicsThreadCreate("fileWatcher", 
+	if (epicsThreadCreate("fileWatcher", 
                     epicsThreadPriorityMax,
                     epicsThreadGetStackSize(epicsThreadStackMedium),
-                    (EPICSTHREADFUNC)fileWatcherThreadC, (void *)this);
-	if (status) {
+                    (EPICSTHREADFUNC)fileWatcherThreadC, (void *)this) == 0)
+	{
 		std::cerr << status << "epicsThreadCreate failure" << std::endl;
+		return;
+	}
+	if (status) {
+		std::cerr << status << "FileList failure" << std::endl;
 		return;
 	}
 
@@ -126,10 +130,11 @@ asynStatus FileList::writeOctet(asynUser *pasynUser, const char *value, size_t m
 	status |= (asynStatus)callParamCallbacks();
 
 	if (status)
+	{
 		epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
 		"%s:%s: status=%d, function=%d, name=%s, value=%d",
 		driverName, functionName, status, function, paramName, value_s.c_str());
-
+    }
 	if (status == asynSuccess)
     {
         *nActual = maxChars;   // To keep result happy in case we skipped an embedded trailing NULL
