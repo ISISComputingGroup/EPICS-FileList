@@ -4,6 +4,7 @@ AUTOSAVE=$(SUPPORT)/autosave/master
 CAPUTLOG=$(SUPPORT)/caPutLog/master
 DEVIOCSTATS=$(SUPPORT)/devIocStats/master
 EFSW=$(SUPPORT)/efsw/master
+FILELIST=$(SUPPORT)/FileList/master
 ICPCONFIG=$(SUPPORT)/icpconfig/master
 LIBJSON=$(SUPPORT)/libjson/master
 MYSQL=$(SUPPORT)/MySQL/master
