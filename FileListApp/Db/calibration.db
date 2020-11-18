@@ -71,7 +71,6 @@ record(sseq, "$(P)CAL:SEL:UPDATE")
     field(LNK5, "$(P)$(CONV_TO_PV):SP:CONV.NSPE")
     field(DOL6, "1")
     field(LNK6, "$(P)CAL:SEL:UPDATE:NOW.PROC")
-
 }
 
 record(dfanout, "$(P)CAL:SEL:UPDATE:NOW")
