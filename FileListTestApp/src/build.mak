@@ -24,6 +24,7 @@ $(APPNAME)_DBD += asSupport.dbd
 $(APPNAME)_DBD += devIocStats.dbd
 $(APPNAME)_DBD += caPutLog.dbd
 $(APPNAME)_DBD += utilities.dbd
+$(APPNAME)_DBD += calcSupport.dbd 
 $(APPNAME)_DBD += asyn.dbd 
 $(APPNAME)_DBD += stream.dbd
 $(APPNAME)_DBD += libjson.dbd 
@@ -43,7 +44,7 @@ $(APPNAME)_LIBS += autosave
 $(APPNAME)_LIBS += utilities 
 $(APPNAME)_LIBS += stream
 $(APPNAME)_LIBS += asyn 
-$(APPNAME)_LIBS += pcrecpp pcre 
+$(APPNAME)_LIBS += calc sscan pcrecpp pcre 
 $(APPNAME)_LIBS += libjson zlib efsw
 ## Add other libraries here ##
 #$(APPNAME)_LIBS += xxx
